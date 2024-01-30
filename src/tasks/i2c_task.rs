@@ -45,7 +45,8 @@ where
     timer: Timer,
     driver: BNO080<I2cInterface<I2C<I2C0, (SDA, SCL)>>>,
     producer: bbqueue::Producer<'a, 128>,
-    counter: u64,
+    sensor_counter: u64,
+    send_counter: u64,
     current_pos: [f32; 3],
     current_velocity: [f32; 3],
     init: bool,
@@ -70,7 +71,8 @@ where
             timer,
             driver,
             producer,
-            counter,
+            sensor_counter: counter,
+            send_counter: counter,
             current_pos: [0.0, 0.0, 0.0],
             current_velocity: [0.0, 0.0, 0.0],
             init: false,
@@ -142,18 +144,18 @@ where
 
             // self.print_result(init_res, "I2C Driver Init");
 
-            let enable_res = self.driver.enable_gyro_integrated_rotation_vector(10u16);
+            let enable_res = self.driver.enable_gyro_integrated_rotation_vector(5u16);
 
             // self.print_result(enable_res, "Sensor Enable GRV Report");
 
-            let enable_res = self.driver.enable_linear_accel(10u16);
+            let enable_res = self.driver.enable_linear_accel(5u16);
 
             // self.print_result(enable_res, "Sensor Enable Linear Accel Report");
 
             self.init = true;
         }
 
-        if time - self.counter >= 10000 {
+        if time - self.sensor_counter >= 5000 {
             let msg_count = self.driver.handle_all_messages(&mut self.timer, 1u8);
 
             if msg_count > 0 {
@@ -162,69 +164,78 @@ where
                 //
                 // self.output_string(&out_string);
 
-                let quad_res = self.driver.rotation_quaternion();
-
-                let mut out_data = HatireData::new();
-
-                if let Ok(quad) = quad_res {
-                    let mut out_string = ArrayString::<128>::new();
-                    // let _ = writeln!(&mut out_string, "QW: {}, QX: {}, QY: {}, QZ: {}", quad[0], quad[1], quad[2], quad[3]);
-
-                    // self.output_string(&out_string);
-
-                    let quat: Quaternion<f32> = (quad[0], [quad[1], quad[2], quad[3]]);
-
-                    let euler = to_euler_angles(RotationType::Intrinsic, XYZ, quat);
-
-                    out_data.rot[0] = euler[0] * 180.0 / PI;
-                    out_data.rot[1] = euler[1] * 180.0 / PI;
-                    out_data.rot[2] = euler[2] * 180.0 / PI;
-
-                    // let _ = writeln!(
-                    //     &mut out_string,
-                    //     "RX: {}, RY: {}, RZ: {}",
-                    //     euler[0] * 180.0 / PI,
-                    //     euler[1] * 180.0 / PI,
-                    //     euler[2] * 180.0 / PI
-                    // );
-                    //
-                    // self.output_string(&out_string);
-                }
-
                 let acc_res = self.driver.linear_accel();
 
                 if let Ok(acc) = acc_res {
-                    let mut out_string = ArrayString::<128>::new();
-                    let _ = writeln!(
-                        &mut out_string,
-                        "AX: {}, AY: {}, AZ: {}",
-                        acc[0], acc[1], acc[2]
-                    );
+                    // let mut out_string = ArrayString::<128>::new();
+                    // let _ = writeln!(
+                    //     &mut out_string,
+                    //     "AX: {}, AY: {}, AZ: {}",
+                    //     acc[0], acc[1], acc[2]
+                    // );
                     // self.output_string(&out_string);
 
-                    self.current_velocity[0] += acc[0];
-                    self.current_velocity[1] += acc[1];
-                    self.current_velocity[2] += acc[2];
+                    self.current_velocity[0] += acc[0] * 0.005;
+                    self.current_velocity[1] += acc[1] * 0.005;
+                    self.current_velocity[2] += acc[2] * 0.005;
 
-                    self.current_velocity[0] /= 1.1;
-                    self.current_velocity[1] /= 1.1;
-                    self.current_velocity[2] /= 1.1;
+                    self.current_velocity[0] /= 1.05;
+                    self.current_velocity[1] /= 1.05;
+                    self.current_velocity[2] /= 1.05;
 
-                    self.current_pos[0] += self.current_velocity[0] * 0.01;
-                    self.current_pos[1] += self.current_velocity[1] * 0.01;
-                    self.current_pos[2] += self.current_velocity[2] * 0.01;
+                    self.current_pos[0] += self.current_velocity[0] * 0.005;
+                    self.current_pos[1] += self.current_velocity[1] * 0.005;
+                    self.current_pos[2] += self.current_velocity[2] * 0.005;
 
-                    self.current_pos[0] /= 1.0005;
-                    self.current_pos[1] /= 1.0005;
-                    self.current_pos[2] /= 1.0005;
+                    self.current_pos[0] /= 1.0001;
+                    self.current_pos[1] /= 1.0001;
+                    self.current_pos[2] /= 1.0001;
 
-                    out_data.trans = self.current_pos.clone();
                 }
-
-                self.output_bytes(&unsafe { mem::transmute::<_, [u8; 30]>(out_data) });
             }
 
-            self.counter = time;
+            self.sensor_counter = time;
+        }
+
+        if time - self.send_counter >= 10000 {
+            let mut out_data = HatireData::new();
+
+            let quad_res = self.driver.rotation_quaternion();
+
+            if let Ok(quad) = quad_res {
+                let mut out_string = ArrayString::<128>::new();
+                // let _ = writeln!(&mut out_string, "QW: {}, QX: {}, QY: {}, QZ: {}", quad[0], quad[1], quad[2], quad[3]);
+
+                // self.output_string(&out_string);
+
+                let quat: Quaternion<f32> = (quad[0], [quad[1], quad[2], quad[3]]);
+
+                let euler = to_euler_angles(RotationType::Intrinsic, XYZ, quat);
+
+                out_data.rot[0] = euler[0] * 180.0 / PI;
+                out_data.rot[1] = euler[1] * 180.0 / PI;
+                out_data.rot[2] = euler[2] * 180.0 / PI;
+
+                // let _ = writeln!(
+                //     &mut out_string,
+                //     "RX: {}, RY: {}, RZ: {}",
+                //     euler[0] * 180.0 / PI,
+                //     euler[1] * 180.0 / PI,
+                //     euler[2] * 180.0 / PI
+                // );
+                //
+                // self.output_string(&out_string);
+            }
+
+            out_data.trans = self.current_pos.clone();
+
+            out_data.trans[0] *= 100.0;
+            out_data.trans[1] *= 100.0;
+            out_data.trans[2] *= 100.0;
+
+            self.output_bytes(&unsafe { mem::transmute::<_, [u8; 30]>(out_data) });
+
+            self.send_counter = time;
         }
     }
 }
