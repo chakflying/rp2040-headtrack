@@ -126,7 +126,7 @@ fn main() -> ! {
         }
     });
 
-    let mut usb_task = UsbTask::new(timer.clone(), &usb_bus, cons, timer.get_counter().ticks());
+    let mut usb_task = UsbTask::new(timer.clone(), &usb_bus, cons);
 
     loop {
         usb_task.run();
