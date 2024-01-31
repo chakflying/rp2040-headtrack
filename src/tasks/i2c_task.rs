@@ -45,7 +45,7 @@ where
     timer: Timer,
     driver: BNO080<I2cInterface<I2C<I2C0, (SDA, SCL)>>>,
     producer: bbqueue::Producer<'a, 128>,
-    sensor_counter: u64,
+    accel_counter: u64,
     send_counter: u64,
     current_pos: [f32; 3],
     current_velocity: [f32; 3],
@@ -71,7 +71,7 @@ where
             timer,
             driver,
             producer,
-            sensor_counter: counter,
+            accel_counter: counter,
             send_counter: counter,
             current_pos: [0.0, 0.0, 0.0],
             current_velocity: [0.0, 0.0, 0.0],
@@ -155,46 +155,39 @@ where
             self.init = true;
         }
 
-        if time - self.sensor_counter >= 5000 {
-            let msg_count = self.driver.handle_all_messages(&mut self.timer, 1u8);
+        self.driver.handle_all_messages(&mut self.timer, 1u8);
 
-            if msg_count > 0 {
+        if time - self.accel_counter >= 5000 {
+            let acc_res = self.driver.linear_accel();
+
+            if let Ok(acc) = acc_res {
                 // let mut out_string = ArrayString::<128>::new();
-                // let _ = writeln!(&mut out_string, "Got messages: {:?}", msg_count);
-                //
+                // let _ = writeln!(
+                //     &mut out_string,
+                //     "AX: {}, AY: {}, AZ: {}",
+                //     acc[0], acc[1], acc[2]
+                // );
                 // self.output_string(&out_string);
 
-                let acc_res = self.driver.linear_accel();
+                self.current_velocity[0] += acc[0] * 0.005;
+                self.current_velocity[1] += acc[1] * 0.005;
+                self.current_velocity[2] += acc[2] * 0.005;
 
-                if let Ok(acc) = acc_res {
-                    // let mut out_string = ArrayString::<128>::new();
-                    // let _ = writeln!(
-                    //     &mut out_string,
-                    //     "AX: {}, AY: {}, AZ: {}",
-                    //     acc[0], acc[1], acc[2]
-                    // );
-                    // self.output_string(&out_string);
+                self.current_velocity[0] /= 1.05;
+                self.current_velocity[1] /= 1.05;
+                self.current_velocity[2] /= 1.05;
 
-                    self.current_velocity[0] += acc[0] * 0.005;
-                    self.current_velocity[1] += acc[1] * 0.005;
-                    self.current_velocity[2] += acc[2] * 0.005;
+                self.current_pos[0] += self.current_velocity[0] * 0.005;
+                self.current_pos[1] += self.current_velocity[1] * 0.005;
+                self.current_pos[2] += self.current_velocity[2] * 0.005;
 
-                    self.current_velocity[0] /= 1.05;
-                    self.current_velocity[1] /= 1.05;
-                    self.current_velocity[2] /= 1.05;
+                self.current_pos[0] /= 1.0001;
+                self.current_pos[1] /= 1.0001;
+                self.current_pos[2] /= 1.0001;
 
-                    self.current_pos[0] += self.current_velocity[0] * 0.005;
-                    self.current_pos[1] += self.current_velocity[1] * 0.005;
-                    self.current_pos[2] += self.current_velocity[2] * 0.005;
-
-                    self.current_pos[0] /= 1.0001;
-                    self.current_pos[1] /= 1.0001;
-                    self.current_pos[2] /= 1.0001;
-
-                }
             }
 
-            self.sensor_counter = time;
+            self.accel_counter = time;
         }
 
         if time - self.send_counter >= 10000 {
