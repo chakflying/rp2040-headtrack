@@ -180,11 +180,6 @@ where
                 self.current_pos[0] += self.current_velocity[0] * 0.005;
                 self.current_pos[1] += self.current_velocity[1] * 0.005;
                 self.current_pos[2] += self.current_velocity[2] * 0.005;
-
-                self.current_pos[0] /= 1.0001;
-                self.current_pos[1] /= 1.0001;
-                self.current_pos[2] /= 1.0001;
-
             }
 
             self.accel_counter = time;
@@ -196,7 +191,7 @@ where
             let quad_res = self.driver.rotation_quaternion();
 
             if let Ok(quad) = quad_res {
-                let mut out_string = ArrayString::<128>::new();
+                // let mut out_string = ArrayString::<128>::new();
                 // let _ = writeln!(&mut out_string, "QW: {}, QX: {}, QY: {}, QZ: {}", quad[0], quad[1], quad[2], quad[3]);
 
                 // self.output_string(&out_string);
