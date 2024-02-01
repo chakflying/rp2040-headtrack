@@ -144,11 +144,11 @@ where
 
             // self.print_result(init_res, "I2C Driver Init");
 
-            let enable_res = self.driver.enable_gyro_integrated_rotation_vector(5u16);
+            let enable_res = self.driver.enable_gyro_integrated_rotation_vector(10u16);
 
             // self.print_result(enable_res, "Sensor Enable GRV Report");
 
-            let enable_res = self.driver.enable_linear_accel(5u16);
+            let enable_res = self.driver.enable_linear_accel(10u16);
 
             // self.print_result(enable_res, "Sensor Enable Linear Accel Report");
 
@@ -157,7 +157,7 @@ where
 
         self.driver.handle_all_messages(&mut self.timer, 1u8);
 
-        if time - self.accel_counter >= 5000 {
+        if time - self.accel_counter >= 10000 {
             let acc_res = self.driver.linear_accel();
 
             if let Ok(acc) = acc_res {
@@ -169,17 +169,17 @@ where
                 // );
                 // self.output_string(&out_string);
 
-                self.current_velocity[0] += acc[0] * 0.005;
-                self.current_velocity[1] += acc[1] * 0.005;
-                self.current_velocity[2] += acc[2] * 0.005;
+                self.current_velocity[0] += acc[0] * 0.01;
+                self.current_velocity[1] += acc[1] * 0.01;
+                self.current_velocity[2] += acc[2] * 0.01;
 
                 self.current_velocity[0] /= 1.05;
                 self.current_velocity[1] /= 1.05;
                 self.current_velocity[2] /= 1.05;
 
-                self.current_pos[0] += self.current_velocity[0] * 0.005;
-                self.current_pos[1] += self.current_velocity[1] * 0.005;
-                self.current_pos[2] += self.current_velocity[2] * 0.005;
+                self.current_pos[0] += self.current_velocity[0] * 0.01;
+                self.current_pos[1] += self.current_velocity[1] * 0.01;
+                self.current_pos[2] += self.current_velocity[2] * 0.01;
 
                 self.current_pos[0] /= 1.00005;
                 self.current_pos[1] /= 1.00005;
