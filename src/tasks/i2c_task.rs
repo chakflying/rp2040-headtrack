@@ -180,6 +180,10 @@ where
                 self.current_pos[0] += self.current_velocity[0] * 0.005;
                 self.current_pos[1] += self.current_velocity[1] * 0.005;
                 self.current_pos[2] += self.current_velocity[2] * 0.005;
+
+                self.current_pos[0] /= 1.00005;
+                self.current_pos[1] /= 1.00005;
+                self.current_pos[2] /= 1.00005;
             }
 
             self.accel_counter = time;
