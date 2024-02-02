@@ -121,7 +121,7 @@ fn main() -> ! {
         let mut i2c_task = I2cTask::new(timer.clone(), i2c, prod, timer.get_counter().ticks());
 
         loop {
-            // led_task.run();
+            led_task.run();
             i2c_task.run();
         }
     });

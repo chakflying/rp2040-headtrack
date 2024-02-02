@@ -11,7 +11,7 @@ use core::fmt::Write;
 use core::mem;
 use embedded_hal::timer::CountDown;
 use fugit::ExtU32;
-use quaternion_core::{to_euler_angles, Quaternion, RotationSequence::XYZ, RotationType};
+use nalgebra::{Quaternion, Unit, UnitQuaternion, Vector3};
 
 const PI: f32 = core::f32::consts::PI;
 
@@ -38,9 +38,9 @@ impl HatireData {
 }
 
 pub struct I2cTask<'a, SDA, SCL>
-where
-    SDA: ValidPinSda<I2C0>,
-    SCL: ValidPinScl<I2C0>,
+    where
+        SDA: ValidPinSda<I2C0>,
+        SCL: ValidPinScl<I2C0>,
 {
     timer: Timer,
     driver: BNO080<I2cInterface<I2C<I2C0, (SDA, SCL)>>>,
@@ -53,9 +53,9 @@ where
 }
 
 impl<'a, SDA, SCL> I2cTask<'a, SDA, SCL>
-where
-    SDA: ValidPinSda<I2C0>,
-    SCL: ValidPinScl<I2C0>,
+    where
+        SDA: ValidPinSda<I2C0>,
+        SCL: ValidPinScl<I2C0>,
 {
     pub fn new(
         timer: Timer,
@@ -107,8 +107,8 @@ where
     }
 
     fn print_result<E>(&mut self, result: Result<(), E>, title: &str)
-    where
-        E: core::fmt::Debug,
+        where
+            E: core::fmt::Debug,
     {
         match result {
             Err(e) => {
@@ -128,9 +128,9 @@ where
 }
 
 impl<SDA, SCL> Task for I2cTask<'_, SDA, SCL>
-where
-    SDA: ValidPinSda<I2C0>,
-    SCL: ValidPinScl<I2C0>,
+    where
+        SDA: ValidPinSda<I2C0>,
+        SCL: ValidPinScl<I2C0>,
 {
     fn run(&mut self) {
         let time = self.timer.get_counter().ticks();
@@ -157,37 +157,37 @@ where
 
         self.driver.handle_all_messages(&mut self.timer, 1u8);
 
-        if time - self.accel_counter >= 10000 {
-            let acc_res = self.driver.linear_accel();
-
-            if let Ok(acc) = acc_res {
-                // let mut out_string = ArrayString::<128>::new();
-                // let _ = writeln!(
-                //     &mut out_string,
-                //     "AX: {}, AY: {}, AZ: {}",
-                //     acc[0], acc[1], acc[2]
-                // );
-                // self.output_string(&out_string);
-
-                self.current_velocity[0] += acc[0] * 0.01;
-                self.current_velocity[1] += acc[1] * 0.01;
-                self.current_velocity[2] += acc[2] * 0.01;
-
-                self.current_velocity[0] /= 1.05;
-                self.current_velocity[1] /= 1.05;
-                self.current_velocity[2] /= 1.05;
-
-                self.current_pos[0] += self.current_velocity[0] * 0.01;
-                self.current_pos[1] += self.current_velocity[1] * 0.01;
-                self.current_pos[2] += self.current_velocity[2] * 0.01;
-
-                self.current_pos[0] /= 1.00005;
-                self.current_pos[1] /= 1.00005;
-                self.current_pos[2] /= 1.00005;
-            }
-
-            self.accel_counter = time;
-        }
+        // if time - self.accel_counter >= 10000 {
+        //     if let (Ok(acc), Ok(quad)) = (
+        //         self.driver.linear_accel(),
+        //         self.driver.rotation_quaternion(),
+        //     ) {
+        //         let quat = UnitQuaternion::from_quaternion(Quaternion::new(
+        //             quad[0], quad[1], quad[2], quad[3],
+        //         ));
+        //         let quat = quat.conjugate();
+        //         let acc_vec = Vector3::new(acc[0], acc[1], acc[2]);
+        //         let acc_corrected = quat * acc_vec;
+        //
+        //         self.current_velocity[0] += acc_corrected[0] * 0.1;
+        //         self.current_velocity[1] += acc_corrected[1] * 0.1;
+        //         self.current_velocity[2] += acc_corrected[2] * 0.1;
+        //
+        //         self.current_velocity[0] /= 1.05;
+        //         self.current_velocity[1] /= 1.05;
+        //         self.current_velocity[2] /= 1.05;
+        //
+        //         self.current_pos[0] += self.current_velocity[0] * 0.01;
+        //         self.current_pos[1] += self.current_velocity[1] * 0.01;
+        //         self.current_pos[2] += self.current_velocity[2] * 0.01;
+        //
+        //         self.current_pos[0] /= 1.00005;
+        //         self.current_pos[1] /= 1.00005;
+        //         self.current_pos[2] /= 1.00005;
+        //     }
+        //
+        //     self.accel_counter = time;
+        // }
 
         if time - self.send_counter >= 10000 {
             let mut out_data = HatireData::new();
@@ -200,13 +200,15 @@ where
 
                 // self.output_string(&out_string);
 
-                let quat: Quaternion<f32> = (quad[0], [quad[1], quad[2], quad[3]]);
+                let quat = UnitQuaternion::from_quaternion(Quaternion::new(
+                    quad[0], quad[1], quad[2], quad[3],
+                ));
 
-                let euler = to_euler_angles(RotationType::Intrinsic, XYZ, quat);
+                let euler = quat.euler_angles();
 
-                out_data.rot[0] = euler[0] * 180.0 / PI;
-                out_data.rot[1] = euler[1] * 180.0 / PI;
-                out_data.rot[2] = euler[2] * 180.0 / PI;
+                out_data.rot[0] = euler.0 * 180.0 / PI;
+                out_data.rot[1] = euler.1 * 180.0 / PI;
+                out_data.rot[2] = euler.2 * 180.0 / PI;
 
                 // let _ = writeln!(
                 //     &mut out_string,
