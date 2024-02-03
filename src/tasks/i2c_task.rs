@@ -12,8 +12,7 @@ use core::mem;
 use embedded_hal::timer::CountDown;
 use fugit::ExtU32;
 use nalgebra::{Quaternion, Unit, UnitQuaternion, Vector3};
-
-const PI: f32 = core::f32::consts::PI;
+use core::f32::consts::PI;
 
 #[derive(Clone, Copy)]
 #[repr(C, packed)]
