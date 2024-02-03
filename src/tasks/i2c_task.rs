@@ -46,6 +46,7 @@ pub struct I2cTask<'a, SDA, SCL>
     driver: BNO080<I2cInterface<I2C<I2C0, (SDA, SCL)>>>,
     producer: bbqueue::Producer<'a, 128>,
     accel_counter: u64,
+    sensor_counter: u64,
     send_counter: u64,
     current_pos: [f32; 3],
     current_velocity: [f32; 3],
@@ -72,6 +73,7 @@ impl<'a, SDA, SCL> I2cTask<'a, SDA, SCL>
             driver,
             producer,
             accel_counter: counter,
+            sensor_counter: counter,
             send_counter: counter,
             current_pos: [0.0, 0.0, 0.0],
             current_velocity: [0.0, 0.0, 0.0],
@@ -144,18 +146,22 @@ impl<SDA, SCL> Task for I2cTask<'_, SDA, SCL>
 
             // self.print_result(init_res, "I2C Driver Init");
 
-            let enable_res = self.driver.enable_gyro_integrated_rotation_vector(10u16);
+            let enable_res = self.driver.enable_gyro_integrated_rotation_vector(5u16);
 
             // self.print_result(enable_res, "Sensor Enable GRV Report");
 
-            let enable_res = self.driver.enable_linear_accel(10u16);
+            // let enable_res = self.driver.enable_linear_accel(10u16);
 
             // self.print_result(enable_res, "Sensor Enable Linear Accel Report");
 
             self.init = true;
         }
 
-        self.driver.handle_all_messages(&mut self.timer, 1u8);
+        if time - self.sensor_counter >= 5000 {
+            self.driver.handle_all_messages(&mut self.timer, 1u8);
+
+            self.sensor_counter = time;
+        }
 
         // if time - self.accel_counter >= 10000 {
         //     if let (Ok(acc), Ok(quad)) = (
@@ -189,7 +195,7 @@ impl<SDA, SCL> Task for I2cTask<'_, SDA, SCL>
         //     self.accel_counter = time;
         // }
 
-        if time - self.send_counter >= 10000 {
+        if time - self.send_counter >= 5000 {
             let mut out_data = HatireData::new();
 
             let quad_res = self.driver.rotation_quaternion();
